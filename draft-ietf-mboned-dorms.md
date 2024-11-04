@@ -9,8 +9,8 @@ date:
 consensus: true
 v: 3
 ipr: trust200902
-area: Ops
-workgroup: Mboned
+area: "Operations and Management"
+workgroup: "MBONE Deployment"
 keyword: Internet-Draft
 
 author:
