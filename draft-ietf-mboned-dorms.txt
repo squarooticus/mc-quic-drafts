@@ -5,7 +5,7 @@
 Mboned                                                        J. Holland
 Internet-Draft                                                   K. Rose
 Intended status: Standards Track               Akamai Technologies, Inc.
-Expires: 8 May 2025                                      4 November 2024
+Expires: 17 May 2025                                    13 November 2024
 
 
       Discovery Of Restconf Metadata for Source-specific multicast
@@ -48,7 +48,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 8 May 2025.
+   This Internet-Draft will expire on 17 May 2025.
 
 Copyright Notice
 

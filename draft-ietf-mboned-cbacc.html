@@ -1,0 +1,1915 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Circuit Breaker Assisted Congestion Control</title>
+<meta content="Jake Holland" name="author">
+<meta content="
+       This document specifies Circuit Breaker Assisted Congestion Control (CBACC).
+CBACC enables fast-trip Circuit Breakers by publishing rate metadata about multicast channels from senders to intermediate network nodes or receivers.
+The circuit breaker behavior is defined as a supplement to receiver driven congestion control systems, to preserve network health if misbehaving or malicious receiver applications subscribe to a volume of traffic that exceeds capacity policies or capability for a network or receiving device. 
+    " name="description">
+<meta content="xml2rfc 3.24.0" name="generator">
+<meta content="Internet-Draft" name="keyword">
+<meta content="draft-ietf-mboned-cbacc-latest" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.24.0
+    Python 3.12.7
+    ConfigArgParse 1.7
+    google-i18n-address 3.1.1
+    intervaltree 3.1.0
+    Jinja2 3.1.4
+    lxml 5.3.0
+    platformdirs 4.3.6
+    pycountry 22.3.5
+    PyYAML 6.0.1
+    requests 2.32.3
+    setuptools 70.3.0
+    wcwidth 0.2.13
+-->
+<link href="draft-ietf-mboned-cbacc.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-cyrillic.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Lora SemiBold'), local('Lora-SemiBold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-semibold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Oxygen Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Oxygen Mono'), local('OxygenMono-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/oxygenmono-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Oxygen Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Oxygen Mono'), local('OxygenMono-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/oxygenmono-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light dark;
+  --background-color: #fff;
+  --text-color: #222;
+  --title-color: #191919;
+  --link-color: #2a6496;
+  --highlight-color: #f9f9f9;
+  --line-color: #eee;
+  --pilcrow-weak: #ddd;
+  --pilcrow-strong: #bbb;
+  --small-font-size: 14.5px;
+  --font-mono: 'Oxygen Mono', monospace;
+  --font-title: "Sofia Sans Semi Condensed", sans-serif;
+  scrollbar-color: #bbb #eee;
+}
+body {
+  max-width: 600px;
+  margin: 75px auto;
+  padding: 0 5px;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  font: 16px/22px "Lora", serif;
+  scroll-behavior: smooth;
+}
+
+.ears {
+  display: none;
+}
+
+/* headings */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title);
+  font-weight: 680;
+  margin: 0.8em 0 0.3em;
+  font-size-adjust: 0.5;
+  color: var(--title-color);
+}
+h1#title {
+  font-size: 32px;
+  line-height: 40px;
+  clear: both;
+}
+h1#title, h1#rfcnum {
+  margin: 1.5em 0 0.2em;
+}
+h1#rfcnum + h1#title {
+  margin: 0.2em 0;
+}
+
+h1, h2, h3 {
+  font-size: 22px;
+  line-height: 27px;
+}
+h4, h5, h6 {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+/* general structure */
+.author {
+  padding-bottom: 0.3em;
+}
+#abstract+p {
+  font-size: 18px;
+  line-height: 24px;
+}
+#abstract+p code, #abstract+p samp, #abstract+p tt {
+  font-size: 16px;
+  line-height: 0;
+}
+
+p {
+  padding: 0;
+  margin: 0.5em 0;
+  text-align: left;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+/* font-family isn't space-separated, but =~ will have to do */
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  border: none;
+  /* this isn't optimal, but it's an existence proof.  PrinceXML doesn't
+     support flexbox yet.
+  */
+  display: table;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 0.5em 2em;
+}
+:is(ol, ul) :is(ol, ul) {
+  margin-left: 1em;
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+.ulCompact li {
+  margin: 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+}
+ul.empty li, .ulEmpty li {
+  margin-top: 0.5em;
+}
+:is(ul, ol).compact, .ulCompact, .olCompact {
+  line-height: 1;
+  margin: 0 0 0 2em;
+}
+
+/* definition lists */
+dl {
+  clear: left;
+  --indent: 3ch;
+  /* --indent: attr(indent ch); not supported in any browser, but we can dream */
+}
+dl.olPercent {
+  --indent: 5ch;
+}
+dl > dt {
+  float: left;
+  margin-right: 2ch;
+  min-width: 8ch;
+}
+dl.dlNewline > dt {
+  float: none;
+}
+dl > dd {
+  margin-bottom: .8em;
+  margin-left: var(--indent) !important; /* stupid element overrides */
+  min-height: 2ex;
+}
+dl.olPercent > dt {
+  min-width: calc(var(--indent) - 2ch);
+}
+:is(dl.compact, .dlCompact) > dd {
+  margin-bottom: 0;
+}
+:is(dl.compact, .dlCompact) > dd > :is(:first-child, .break:first-child + *) {
+  margin-top: 0;
+}
+:is(dl.compact, .dlCompact) > dd > :is(:last-child) {
+  margin-bottom: 0;
+}
+dl > dd > dl {
+  margin-top: 0.5em;
+  margin-bottom: 0;
+}
+:is(dd, span).break {
+  display: none;
+}
+
+/* links */
+a, a[href].selfRef:hover {
+  text-decoration: none;
+}
+a[href] {
+  color: var(--link-color);
+}
+a[href].selfRef, .iref + a[href].internal {
+  color: var(--text-color);
+}
+a[href]:hover {
+  text-decoration: underline;
+}
+a[href].selfRef:hover {
+  background-color: var(--highlight-color);
+}
+a.xref:is(.cite, .auto), :is(#status-of-memo, #copyright) a {
+  white-space: nowrap;
+}
+
+/* Figures */
+tt, code, pre {
+  background-color: var(--highlight-color);
+  font: 14px/22px var(--font-mono);
+}
+tt, code {
+  /* changing the font for inline elements leads to different ascender
+     and descender heights; as we want to retain baseline alignment,
+     remove leading to avoid altering the final height of lines
+     note: this fails if these blocks take an entire line,
+     a different solution would be great */
+  line-height: 0;
+}
+:is(h1, h2, h3, h4, h5, h6) :is(tt, code) {
+  font-size: 84%;
+}
+pre {
+  border: 1px solid var(--line-color);
+  font-size: 13.5px;
+  line-height: 16px;
+  letter-spacing: -0.2px;
+  margin: 5px;
+  padding: 5px;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0.5em 0;
+  padding: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption, caption {
+  font-style: italic;
+  margin: 0.5em 1.5em;
+  text-align: left;
+}
+@media screen {
+  /* Auto-collapse boilerplate. */
+  :is(#status-of-memo, #copyright) p {
+    margin: -2px 0;
+    max-height: 0;
+    transition: max-height 2s ease, margin 0.5s ease 0.5s;
+    overflow: hidden;
+  }
+  :is(#status-of-memo, #copyright):hover p,
+  :is(#status-of-memo, #copyright) h2:target ~ p {
+    margin: 0.5em 0;
+    max-height: 500px;
+    overflow: auto;
+  }
+  pre, svg {
+    display: inline-block;
+    overflow-x: auto;
+  }
+  pre {
+    max-width: 100%;
+    width: calc(100% - 22px - 1em);
+  }
+  svg {
+    max-width: calc(100% - 22px - 1em);
+  }
+  figure pre {
+    display: block;
+    width: calc(100% - 25px);
+  }
+  :is(pre, svg) + .pilcrow {
+    display: inline-block;
+    vertical-align: text-bottom;
+    padding-bottom: 8px;
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 0 2em;
+  font-style: italic;
+}
+blockquote {
+  margin: 1em 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+
+/* tables */
+table {
+  max-width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+}
+table.right {
+  margin-left: auto;
+}
+table.center {
+  margin-left: auto;
+  margin-right: auto;
+}
+table.left {
+  margin-right: auto;
+}
+thead, tbody {
+  border: 1px solid var(--line-color);
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 5px 10px;
+}
+th {
+  background-color: var(--line-color);
+}
+:is(tr:nth-child(2n), thead+tbody > tr:nth-child(2n+1)) > td {
+  background-color: var(--background-color);
+}
+:is(tr:nth-child(2n+1), thead+tbody > tr:nth-child(2n)) > td {
+  background-color: var(--highlight-color);
+}
+table caption {
+  margin: 0;
+  padding: 3px 0 3px 1em;
+}
+table p {
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  margin-left: 3px;
+  opacity: 0.2;
+  user-select: none;
+}
+a.pilcrow[href] { color: var(--pilcrow-weak); }
+a.pilcrow[href]:hover { text-decoration: none; }
+@media not print {
+  :hover > a.pilcrow {
+    opacity: 1;
+  }
+  a.pilcrow[href]:hover {
+    color: var(--pilcrow-strong);
+    background-color: transparent;
+  }
+}
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid var(--line-color);
+}
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: 600;
+  font-size: var(--small-font-size);
+}
+.role {
+  font-variant: all-small-caps;
+}
+sub, sup {
+  line-height: 1;
+  font-size: 80%;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: var(--small-font-size);
+  line-height: 18px;
+  --identifier-width: 15ch;
+}
+#identifiers dt {
+  width: var(--identifier-width);
+  min-width: var(--identifier-width);
+  clear: left;
+  float: left;
+  text-align: right;
+  margin-right: 1ch;
+}
+#identifiers dd {
+  margin: 0;
+  margin-left: calc(1em + var(--identifier-width)) !important;
+  min-width: 5em;
+}
+#identifiers .authors .author {
+  display: inline-block;
+  margin-right: 1.5em;
+}
+#identifiers .authors .org {
+  font-style: italic;
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #999;
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: left;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+}
+@media screen {
+  #toc nav {
+    font-family: var(--font-title);
+    font-weight: 360;
+  }
+}
+#toc nav ul {
+  margin: 0 0.5em 0 0;
+  padding: 0;
+  list-style: none;
+}
+#toc nav li {
+  line-height: 1.3em;
+  margin: 2px 0;
+  padding-left: 1.2em;
+  text-indent: -1.2em;
+}
+#toc a.xref {
+  white-space: normal;
+}
+/* references */
+.references dt {
+  text-align: right;
+  font-weight: bold;
+  min-width: 10ch;
+  margin-right: 1.5ch;
+}
+.references dt:target::before {
+  content: "⇒";
+  width: 15px;
+  margin: 0 10px 0 -25px;
+}
+.references dd {
+  margin-left: 12ch !important;
+  overflow: auto;
+}
+
+.refInstance {
+  margin-bottom: 1.25em;
+}
+
+.references .ascii {
+  margin-bottom: 0.25em;
+}
+
+/* index */
+#rfc\.index\.index + ul {
+  margin-left: 0;
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  margin: 1em 0;
+}
+address.vcard .nameRole {
+  font-weight: 700;
+  margin-left: 0;
+}
+address.vcard .label {
+  margin: 0.5em 0;
+}
+address.vcard .type {
+  display: none;
+}
+.alternative-contact {
+  margin: 1.5em 0 1em;
+}
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+@media (min-width: 500px) {
+  #authors-addresses > section {
+    column-count: 2;
+    column-gap: 20px;
+  }
+  #authors-addresses > section > h2 {
+    column-span: all;
+  }
+  /* hack for break-inside: avoid-column */
+  #authors-addresses address {
+    display: inline-block;
+    break-inside: avoid-column;
+  }
+}
+
+.rfcEditorRemove p:first-of-type {
+  font-style: italic;
+}
+.cref {
+  background-color: rgba(249, 232, 105, 0.3);
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+/* alternative layout for smaller screens */
+@media screen and (max-width: 929px) {
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 1px 0 0 0;
+    margin: 0;
+    border-bottom: 1px solid #ccc;
+    opacity: 0.6;
+  }
+  #toc.active {
+      opacity: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 2px 0 2px 6px;
+    padding-right: 1em;
+    font-size: 18px;
+    line-height: 24px;
+    min-width: 190px;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+  }
+  #toc h2::before { /* css hamburger */
+    float: right;
+    position: relative;
+    width: 1em;
+    height: 1px;
+    left: -164px;
+    margin: 8px 0 0 0;
+    background: white none repeat scroll 0 0;
+    box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+    content: "";
+  }
+  #toc nav {
+    display: none;
+    background-color: var(--background-color);
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+  #toc.active nav {
+    display: block;
+  }
+  /* Make the collapsed ToC header render white on gray also when it's a link */
+  #toc h2 a,
+  #toc h2 a:link,
+  #toc h2 a:focus,
+  #toc h2 a:hover,
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+  #toc a.toplink {
+    margin-top: 2px;
+  }
+}
+
+/* alternative layout for wide screens */
+@media screen and (min-width: 930px) {
+  body {
+    padding-right: 360px;
+    padding-right: calc(min(180px + 20%, 500px));
+  }
+  #toc {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    right: calc(50vw - 480px);
+    width: 312px;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 2em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  #toc nav > ul  {
+    margin-bottom: 2em;
+  }
+  #toc ul {
+    margin: 0 0 0 4px;
+    font-size: var(--small-font-size);
+  }
+  #toc ul :is(p, li) {
+    margin: 2px 0;
+    line-height: 22px;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre, .vcard {
+    page-break-inside: avoid;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  :is(h2, h3, h4, h5, h6)+*, dd {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+  .toplink {
+    display: none;
+  }
+}
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+}
+
+/* Changes introduced to fix issues found during implementation */
+
+/* Separate body from document info even without intervening H1 */
+section {
+  clear: both;
+}
+
+/* Top align author divs, to avoid names without organization dropping level with org names */
+.author {
+  vertical-align: top;
+}
+
+/* Style section numbers with more space between number and title */
+.section-number {
+  padding-right: 0.5em;
+}
+
+/* Add styling for a link in the ToC that points to the top of the document */
+a.toplink {
+  float: right;
+  margin: 8px 0.5em 0;
+}
+
+/* Provide styling for table cell text alignment */
+table .text-left {
+  text-align: left;
+}
+table .text-center {
+  text-align: center;
+}
+table .text-right {
+  text-align: right;
+}
+
+/* Make the alternative author contact information look less like just another
+   author, and group it closer with the primary author contact information */
+.alternative-contact {
+  margin: 0.5em 0 0.25em 0;
+}
+address .non-ascii {
+  margin: 0 0 0 2em;
+}
+
+/* With it being possible to set tables with alignment
+  left, center, and right, { width: 100%; } does not make sense */
+table {
+  width: auto;
+}
+
+/* Avoid reference text that sits in a block with very wide left margin,
+   because of a long floating dt label.*/
+.references dd {
+  overflow: visible;
+}
+
+/* Control caption placement */
+caption {
+  caption-side: bottom;
+}
+
+/* Limit the width of the author address vcard, so names in right-to-left
+   script don't end up on the other side of the page. */
+
+address.vcard {
+  max-width: 20em;
+  margin-right: auto;
+}
+
+/* For address alignment dependent on LTR or RTL scripts */
+address div.left {
+  text-align: left;
+}
+address div.right {
+  text-align: right;
+}
+
+/* Dark mode. */
+@media (prefers-color-scheme: dark) {
+:root {
+  --background-color: #121212;
+  --text-color: #f0f0f0;
+  --title-color: #fff;
+  --link-color: #4da4f0;
+  --highlight-color: #282828;
+  --line-color: #444;
+  --pilcrow-weak: #444;
+  --pilcrow-strong: #666;
+  scrollbar-color: #777 #333;
+}
+}
+
+/* SVG Trick: a prefix match works because only black and white are allowed */
+svg :is([stroke="black"], [stroke^="#000"]) {
+  stroke: var(--text-color);
+}
+svg :is([stroke="white"], [stroke^="#fff"]) {
+  stroke: var(--background-color);
+}
+svg :is([fill="black"], [fill^="#000"], :not([fill])) {
+  fill: var(--text-color);
+}
+svg :is([fill="white"], [fill^="#fff"]) {
+  fill: var(--background-color);
+}
+</style>
+
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">CBACC</td>
+<td class="right">March 2022</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Holland</td>
+<td class="center">Expires 8 September 2022</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Mboned</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-ietf-mboned-cbacc-latest</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2022-03-07" class="published">7 March 2022</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Standards Track</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2022-09-08">8 September 2022</time></dd>
+<dt class="label-authors">Author:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">J. Holland</div>
+<div class="org">Akamai Technologies, Inc.</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Circuit Breaker Assisted Congestion Control</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">This document specifies Circuit Breaker Assisted Congestion Control (CBACC).
+CBACC enables fast-trip Circuit Breakers by publishing rate metadata about multicast channels from senders to intermediate network nodes or receivers.
+The circuit breaker behavior is defined as a supplement to receiver driven congestion control systems, to preserve network health if misbehaving or malicious receiver applications subscribe to a volume of traffic that exceeds capacity policies or capability for a network or receiving device.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+</section>
+<section class="note rfcEditorRemove" id="section-note.1">
+      <h2 id="name-discussion-venues">
+<a href="#name-discussion-venues" class="section-name selfRef">Discussion Venues</a>
+      </h2>
+<p id="section-note.1-1">This note is to be removed before publishing as an RFC.<a href="#section-note.1-1" class="pilcrow">¶</a></p>
+<p id="section-note.1-2">Discussion of this document takes place on the
+    MBONE Deployment Working Group mailing list (mboned@ietf.org),
+    which is archived at <span><a href="https://mailarchive.ietf.org/arch/browse/mboned/">https://mailarchive.ietf.org/arch/browse/mboned/</a></span>.<a href="#section-note.1-2" class="pilcrow">¶</a></p>
+<p id="section-note.1-3">Source for this draft and an issue tracker can be found at
+    <span><a href="https://github.com/squarooticus/mc-quic-drafts">https://github.com/squarooticus/mc-quic-drafts</a></span>.<a href="#section-note.1-3" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 8 September 2022.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2022 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.1">
+                <p id="section-toc.1-1.1.2.1.1" class="keepWithNext"><a href="#section-1.1" class="auto internal xref">1.1</a>.  <a href="#name-background-and-terminology" class="internal xref">Background and Terminology</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.2">
+                <p id="section-toc.1-1.1.2.2.1" class="keepWithNext"><a href="#section-1.2" class="auto internal xref">1.2</a>.  <a href="#name-venues-for-contribution-and" class="internal xref">Venues for Contribution and Discussion</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1.2.3">
+                <p id="section-toc.1-1.1.2.3.1" class="keepWithNext"><a href="#section-1.3" class="auto internal xref">1.3</a>.  <a href="#name-non-obvious-doc-choices" class="internal xref">Non-obvious doc choices</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-circuit-breaker-behavior" class="internal xref">Circuit Breaker Behavior</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1">
+                <p id="section-toc.1-1.2.2.1.1"><a href="#section-2.1" class="auto internal xref">2.1</a>.  <a href="#name-functional-components" class="internal xref">Functional Components</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.1">
+                    <p id="section-toc.1-1.2.2.1.2.1.1"><a href="#section-2.1.1" class="auto internal xref">2.1.1</a>.  <a href="#name-bitrate-advertisement" class="internal xref">Bitrate Advertisement</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.2">
+                    <p id="section-toc.1-1.2.2.1.2.2.1"><a href="#section-2.1.2" class="auto internal xref">2.1.2</a>.  <a href="#name-circuit-breaker-node" class="internal xref">Circuit Breaker Node</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.3">
+                    <p id="section-toc.1-1.2.2.1.2.3.1"><a href="#section-2.1.3" class="auto internal xref">2.1.3</a>.  <a href="#name-communication-method" class="internal xref">Communication Method</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.4">
+                    <p id="section-toc.1-1.2.2.1.2.4.1"><a href="#section-2.1.4" class="auto internal xref">2.1.4</a>.  <a href="#name-measurement-function" class="internal xref">Measurement Function</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.5">
+                    <p id="section-toc.1-1.2.2.1.2.5.1"><a href="#section-2.1.5" class="auto internal xref">2.1.5</a>.  <a href="#name-trigger-function" class="internal xref">Trigger Function</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.6">
+                    <p id="section-toc.1-1.2.2.1.2.6.1"><a href="#section-2.1.6" class="auto internal xref">2.1.6</a>.  <a href="#name-reaction" class="internal xref">Reaction</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.1.2.7">
+                    <p id="section-toc.1-1.2.2.1.2.7.1"><a href="#section-2.1.7" class="auto internal xref">2.1.7</a>.  <a href="#name-feedback-control-mechanism" class="internal xref">Feedback Control Mechanism</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2">
+                <p id="section-toc.1-1.2.2.2.1"><a href="#section-2.2" class="auto internal xref">2.2</a>.  <a href="#name-states" class="internal xref">States</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.1">
+                    <p id="section-toc.1-1.2.2.2.2.1.1"><a href="#section-2.2.1" class="auto internal xref">2.2.1</a>.  <a href="#name-interface-state" class="internal xref">Interface State</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.2.2.2">
+                    <p id="section-toc.1-1.2.2.2.2.2.1"><a href="#section-2.2.2" class="auto internal xref">2.2.2</a>.  <a href="#name-flow-state" class="internal xref">Flow State</a></p>
+</li>
+                </ul>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.3">
+                <p id="section-toc.1-1.2.2.3.1"><a href="#section-2.3" class="auto internal xref">2.3</a>.  <a href="#name-implementation-design-consi" class="internal xref">Implementation Design Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.3.2.1">
+                    <p id="section-toc.1-1.2.2.3.2.1.1"><a href="#section-2.3.1" class="auto internal xref">2.3.1</a>.  <a href="#name-oversubscription-thresholds" class="internal xref">Oversubscription Thresholds</a></p>
+</li>
+                  <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2.2.3.2.2">
+                    <p id="section-toc.1-1.2.2.3.2.2.1"><a href="#section-2.3.2" class="auto internal xref">2.3.2</a>.  <a href="#name-fairness-functions" class="internal xref">Fairness Functions</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-yang-module" class="internal xref">YANG Module</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.1">
+                <p id="section-toc.1-1.3.2.1.1"><a href="#section-3.1" class="auto internal xref">3.1</a>.  <a href="#name-tree-diagram" class="internal xref">Tree Diagram</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3.2.2">
+                <p id="section-toc.1-1.3.2.2.1"><a href="#section-3.2" class="auto internal xref">3.2</a>.  <a href="#name-module" class="internal xref">Module</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-yang-module-names-registry" class="internal xref">YANG Module Names Registry</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-the-xml-registry" class="internal xref">The XML Registry</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-metadata-security" class="internal xref">Metadata Security</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-denial-of-service" class="internal xref">Denial of Service</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2.2.1">
+                    <p id="section-toc.1-1.5.2.2.2.1.1"><a href="#section-5.2.1" class="auto internal xref">5.2.1</a>.  <a href="#name-state-overload" class="internal xref">State Overload</a></p>
+</li>
+                </ul>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-acknowledgements" class="internal xref">Acknowledgements</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.2">
+                <p id="section-toc.1-1.7.2.2.1"><a href="#section-7.2" class="auto internal xref">7.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#appendix-A" class="auto internal xref">Appendix A</a>.  <a href="#name-overjoining" class="internal xref">Overjoining</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-authors-address" class="internal xref">Author's Address</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">This document defines Circuit Breaker Assisted Congestion Control (CBACC).
+CBACC defines a Network Transport Circuit Breaker (CB), as described by <span>[<a href="#RFC8084" class="cite xref">RFC8084</a>]</span>.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">The CB behavior defined in this document uses bit-rate metadata about multicast data streams coupled with policy, capacity, and load information at a network location to prune multicast channels so that the network's aggregate capacity at that location is not exceeded by the subscribed channels.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">To communicate the required metadata, this document defines a YANG <span>[<a href="#RFC7950" class="cite xref">RFC7950</a>]</span> module that augments the DORMS <span>[<a href="#I-D.draft-ietf-mboned-dorms" class="cite xref">I-D.draft-ietf-mboned-dorms</a>]</span> YANG module.
+DORMS provides a mechanism for senders to publish metadata about the multicast streams they're sending through a RESTCONF service, so that receivers or forwarding nodes can discover and consume the metadata with a set of standard methods.
+The CBACC metadata MAY be communicated to receivers or forwarding nodes by some other method, but the definition of any alternative methods is out of scope for this document.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">The CB behavior defined in this document matches the description provided in Section 3.2.3 of <span>[<a href="#RFC8084" class="cite xref">RFC8084</a>]</span> of a unidirectional CB over a controlled path.
+The control messages from that description are composed of the messages containing the metadata required for operation of the CB.<a href="#section-1-4" class="pilcrow">¶</a></p>
+<p id="section-1-5">CBACC is designed to supplement protocols that use multicast IP and rely on well-behaved receivers to achieve congestion control.
+Examples of congestion control systems fitting this description include <span>[<a href="#PLM" class="cite xref">PLM</a>]</span>, <span>[<a href="#RLM" class="cite xref">RLM</a>]</span>, <span>[<a href="#RLC" class="cite xref">RLC</a>]</span>, <span>[<a href="#FLID-DL" class="cite xref">FLID-DL</a>]</span>, <span>[<a href="#SMCC" class="cite xref">SMCC</a>]</span>, and WEBRC <span>[<a href="#RFC3738" class="cite xref">RFC3738</a>]</span>.<a href="#section-1-5" class="pilcrow">¶</a></p>
+<p id="section-1-6">CBACC addresses a problem with "overjoining" by untrusted receivers.<a href="#section-1-6" class="pilcrow">¶</a></p>
+<p id="section-1-7">In an overjoining condition, receivers (either malicious, misconfigured, or with implementation errors) subscribe to multicast channels but do not respond appropriately to congestion.
+When sufficient multicast traffic is available for subscription by such receivers, this can overload any network.<a href="#section-1-7" class="pilcrow">¶</a></p>
+<p id="section-1-8">The overjoining problem is relevant to misbehaving receivers for both receiver-driven and feedback-driven congestion control strategies, as described in Section 4.1 of <span>[<a href="#RFC8085" class="cite xref">RFC8085</a>]</span>.<a href="#section-1-8" class="pilcrow">¶</a></p>
+<p id="section-1-9">Overjoining attacks and the challenges they present are discussed in more detail in <a href="#ref-overjoining" class="auto internal xref">Appendix A</a>.<a href="#section-1-9" class="pilcrow">¶</a></p>
+<p id="section-1-10">CBACC offers a solution for the recommendation in Section 4 of <span>[<a href="#RFC8085" class="cite xref">RFC8085</a>]</span> that circuit breaker solutions be used even where congestion control is optional.<a href="#section-1-10" class="pilcrow">¶</a></p>
+<div id="background-and-terminology">
+<section id="section-1.1">
+        <h3 id="name-background-and-terminology">
+<a href="#section-1.1" class="section-number selfRef">1.1. </a><a href="#name-background-and-terminology" class="section-name selfRef">Background and Terminology</a>
+        </h3>
+<p id="section-1.1-1">The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document are to be interpreted as described in BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they appear in all capitals, as shown here.<a href="#section-1.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="venue">
+<section id="section-1.2">
+        <h3 id="name-venues-for-contribution-and">
+<a href="#section-1.2" class="section-number selfRef">1.2. </a><a href="#name-venues-for-contribution-and" class="section-name selfRef">Venues for Contribution and Discussion</a>
+        </h3>
+<p id="section-1.2-1">This document is in the Github repository at:<a href="#section-1.2-1" class="pilcrow">¶</a></p>
+<p id="section-1.2-2">https://github.com/GrumpyOldTroll/ietf-dorms-cluster<a href="#section-1.2-2" class="pilcrow">¶</a></p>
+<p id="section-1.2-3">Readers are welcome to open issues and send pull requests for this document.<a href="#section-1.2-3" class="pilcrow">¶</a></p>
+<p id="section-1.2-4">Please note that contributions may be merged and substantially edited, and as a reminder, please carefully consider the Note Well before contributing: https://datatracker.ietf.org/submit/note-well/<a href="#section-1.2-4" class="pilcrow">¶</a></p>
+<p id="section-1.2-5">Substantial discussion of this document should take place on the MBONED working group mailing list (mboned@ietf.org).<a href="#section-1.2-5" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1.2-6.1">
+            <p id="section-1.2-6.1.1">Join: https://www.ietf.org/mailman/listinfo/mboned<a href="#section-1.2-6.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-1.2-6.2">
+            <p id="section-1.2-6.2.1">Search: https://mailarchive.ietf.org/arch/browse/mboned/<a href="#section-1.2-6.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+<div id="non-obvious-doc-choices">
+<section id="section-1.3">
+        <h3 id="name-non-obvious-doc-choices">
+<a href="#section-1.3" class="section-number selfRef">1.3. </a><a href="#name-non-obvious-doc-choices" class="section-name selfRef">Non-obvious doc choices</a>
+        </h3>
+<ul class="normal">
+<li class="normal" id="section-1.3-1.1">
+            <p id="section-1.3-1.1.1">Since nothing is necessarily being actively measured by a network component at the ingress, referring to the bitrate advertisement as an "ingress meter" for this context was considered confusing by reviewers, so the section was renamed with just a note pointing to the link.  Likewise the egress meter and "CB node".<a href="#section-1.3-1.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-1.3-1.2">
+            <p id="section-1.3-1.2.1">TBD: might need more and better examples explaining the point in <a href="#ordering" class="auto internal xref">Section 2.1.5.1</a>?  Some reason to believe it's not sufficiently clear...<a href="#section-1.3-1.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-1.3-1.3">
+            <p id="section-1.3-1.3.1">Another TBD: consider Dino's suggestion from 2020-04-09 to include an operational considerations section that addresses some possible optimizations for CB placement and configuration.<a href="#section-1.3-1.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-1.3-1.4">
+            <p id="section-1.3-1.4.1">TBD: add a section walking through the requirements in <a href="https://datatracker.ietf.org/doc/html/rfc8084#section-4">https://datatracker.ietf.org/doc/html/rfc8084#section-4</a> and explaining how this matches.<a href="#section-1.3-1.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-1.3-1.5">
+            <p id="section-1.3-1.5.1">I'm unclear on whether <a href="https://datatracker.ietf.org/doc/html/rfc8407#section-3.8.2">https://datatracker.ietf.org/doc/html/rfc8407#section-3.8.2</a> applies here, such that providing an augmentation inside the DORMS namespace causes an update to the DORMS document.<a href="#section-1.3-1.5.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="circuit-breaker-behavior">
+<section id="section-2">
+      <h2 id="name-circuit-breaker-behavior">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-circuit-breaker-behavior" class="section-name selfRef">Circuit Breaker Behavior</a>
+      </h2>
+<div id="functional-components">
+<section id="section-2.1">
+        <h3 id="name-functional-components">
+<a href="#section-2.1" class="section-number selfRef">2.1. </a><a href="#name-functional-components" class="section-name selfRef">Functional Components</a>
+        </h3>
+<p id="section-2.1-1">This section maps the functional components described in Section 3.1 of <span>[<a href="#RFC8084" class="cite xref">RFC8084</a>]</span> to the operational components of the CBACC CB defined by this document.<a href="#section-2.1-1" class="pilcrow">¶</a></p>
+<div id="bit-ad">
+<section id="section-2.1.1">
+          <h4 id="name-bitrate-advertisement">
+<a href="#section-2.1.1" class="section-number selfRef">2.1.1. </a><a href="#name-bitrate-advertisement" class="section-name selfRef">Bitrate Advertisement</a>
+          </h4>
+<p id="section-2.1.1-1">The metadata provides an advertised maximum data bit-rate, namely the "max-speed" field in the YANG model in <a href="#ref-yang" class="auto internal xref">Section 3</a>.
+This is a self-report by the sender about the maximum amount of traffic a sender will send within any time interval given by the "data-rate-window" field, which is the measurement interval for the CB.
+This value refers to the total IP Payload data for all packets in the same (S,G), and its units are in kilobits per second.<a href="#section-2.1.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-2">The sender MUST NOT send more data for a data stream than the amount of data declared according to its advertised data rate within any measurement window, and it's RECOMMENDED for the sender to provide some margin to account for the possibility of burst forwarding after traffic encounters a non-empty queue, e.g. as sometimes observed with ACK compression (see <span>[<a href="#ZSC91" class="cite xref">ZSC91</a>]</span> for a description of the phenomenon).
+If a CB node observes a higher data rate transmitted within any measurement window, it MAY circuit-break that flow immediately.<a href="#section-2.1.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.1.1-3">In the terminology of <span>[<a href="#RFC8084" class="cite xref">RFC8084</a>]</span>, the bitrate advertisement qualifies as an ingress meter.<a href="#section-2.1.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="cb-node">
+<section id="section-2.1.2">
+          <h4 id="name-circuit-breaker-node">
+<a href="#section-2.1.2" class="section-number selfRef">2.1.2. </a><a href="#name-circuit-breaker-node" class="section-name selfRef">Circuit Breaker Node</a>
+          </h4>
+<p id="section-2.1.2-1">A circuit breaker node (CB node) is a location in a network where the costraints of the network and the observations about active traffic are compared to the bitrate advertisement in order to make the decision loop about when and whether to perform the circuit breaking behavior.
+In the terminology of <span>[<a href="#RFC8084" class="cite xref">RFC8084</a>]</span>, the CB node qualifies as an egress meter.<a href="#section-2.1.2-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.2-2">The CB node has access to several pieces of information that can be used as relevant egress metrics that may include:<a href="#section-2.1.2-2" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-2.1.2-3">
+<li id="section-2.1.2-3.1">
+              <p id="section-2.1.2-3.1.1">Physical capacity limits on each interface.<a href="#section-2.1.2-3.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-2.1.2-3.2">
+              <p id="section-2.1.2-3.2.1">Configured capacity limits for multicast traffic for each interface.<a href="#section-2.1.2-3.2.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-2.1.2-3.3">
+              <p id="section-2.1.2-3.3.1">The observed received data rates of subscribed multicast channels with CBACC metadata.<a href="#section-2.1.2-3.3.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-2.1.2-3.4">
+              <p id="section-2.1.2-3.4.1">The observed received data rates of subscribed multicast channels without CBACC metadata.<a href="#section-2.1.2-3.4.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-2.1.2-3.5">
+              <p id="section-2.1.2-3.5.1">The observed received data rates of competing non-multicast traffic.<a href="#section-2.1.2-3.5.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-2.1.2-3.6">
+              <p id="section-2.1.2-3.6.1">The loss rate for subscribed multicast channels, when available.
+The loss rate is only sometimes observable at a CB node; for example, when using AMBI <span>[<a href="#I-D.draft-ietf-mboned-ambi" class="cite xref">I-D.draft-ietf-mboned-ambi</a>]</span>, or when the data stream carries a protocol that is known to the CB node by some out of band means, and whose traffic can be monitored for loss.
+When available, the loss rates may be used.<a href="#section-2.1.2-3.6.1" class="pilcrow">¶</a></p>
+</li>
+          </ol>
+<p id="section-2.1.2-4">Note that any on-path router can behave as a CB node, even though there may be other CB nodes downstream or upstream covering the same data streams.
+When viewing CB nodes as egress meters in the context of <span>[<a href="#RFC8084" class="cite xref">RFC8084</a>]</span>, it's important to recall there's not a single egress meter in the network, but rather an egress meter per CB node, representing potentially multiple overlaid circuit breakers that may redundantly cover parts of the same path, with potentially different constraints based on the network location where the egress meter operates.
+All of the CB nodes anywhere on a path constitute separate circuit breakers that may trip independently of other circuit breakers.<a href="#section-2.1.2-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.2-5">Also note that other kinds of components besides on-path routers forwarding the traffic can act as CB nodes, for example the operating system or browser on a device receiving the traffic, or the receiving application itself.<a href="#section-2.1.2-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="communication-method">
+<section id="section-2.1.3">
+          <h4 id="name-communication-method">
+<a href="#section-2.1.3" class="section-number selfRef">2.1.3. </a><a href="#name-communication-method" class="section-name selfRef">Communication Method</a>
+          </h4>
+<p id="section-2.1.3-1">CBACC generally operates at a CB node, where metrics such as those described in <a href="#cb-node" class="auto internal xref">Section 2.1.2</a> are available through system calls, or by communication with various locally deployable system monitoring applications.
+However, the CBACC processing can equivalently occur on a separate device that can monitor statistics gathered at a CB node, as long as the necessary control functions to trigger the CB can be invoked.<a href="#section-2.1.3-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.3-2">The communication path defined in this document for the CB node to obtain the bitrate advertisement in <a href="#bit-ad" class="auto internal xref">Section 2.1.1</a> is the use of DORMS <span>[<a href="#I-D.draft-ietf-mboned-dorms" class="cite xref">I-D.draft-ietf-mboned-dorms</a>]</span>.
+Other methods MAY be used as well or instead, but are out of scope for this document.<a href="#section-2.1.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="measurement-function">
+<section id="section-2.1.4">
+          <h4 id="name-measurement-function">
+<a href="#section-2.1.4" class="section-number selfRef">2.1.4. </a><a href="#name-measurement-function" class="section-name selfRef">Measurement Function</a>
+          </h4>
+<p id="section-2.1.4-1">The measurement function maintains a few values for each interface, computed from the metrics described in <a href="#cb-node" class="auto internal xref">Section 2.1.2</a> and <a href="#bit-ad" class="auto internal xref">Section 2.1.1</a>:<a href="#section-2.1.4-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-2.1.4-2">
+<li id="section-2.1.4-2.1">
+              <p id="section-2.1.4-2.1.1">The aggregate advertised maximum bit-rate capacity consumed by CBACC data streams.
+This is the sum of the max-speed values in the CBACC metadata for all data streams subscribed through an interface<a href="#section-2.1.4-2.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li id="section-2.1.4-2.2">
+              <p id="section-2.1.4-2.2.1">An oversubscription threshold for each interface.
+The oversubscription threshold will be determined differently for CB nodes in different contexts.
+In some network devices, it might be as simple as an administratively configured absolute value or proportion of an interface's capacity.
+For other situations, like a CB node operating in a context with loss visibility, it could be a dynamically changing value that grows when data streams are successfully subscribed and receiving data without loss, and shrinks as loss is observed across subscribed data streams.
+The oversubscription threshold calculation could also incorporate other information like out-of-band path capacity measurements with bandwidth detection techniques such as <span>[<a href="#PathChirp" class="cite xref">PathChirp</a>]</span> or <span>[<a href="#CapProbe" class="cite xref">CapProbe</a>]</span>.<a href="#section-2.1.4-2.2.1" class="pilcrow">¶</a></p>
+<p id="section-2.1.4-2.2.2">
+This document covers some non-normative examples of valid oversubscription threshold functions in <a href="#ref-oversubscribe-thresh" class="auto internal xref">Section 2.3.1</a>.
+In general, the oversubscription threshold is the primary parameter that different CBs in different contexts can tune to provide the safety guarantees necessary for their context.<a href="#section-2.1.4-2.2.2" class="pilcrow">¶</a></p>
+</li>
+          </ol>
+</section>
+</div>
+<div id="trigger-function">
+<section id="section-2.1.5">
+          <h4 id="name-trigger-function">
+<a href="#section-2.1.5" class="section-number selfRef">2.1.5. </a><a href="#name-trigger-function" class="section-name selfRef">Trigger Function</a>
+          </h4>
+<p id="section-2.1.5-1">The trigger function fires when the aggregate advertised maximum bit-rate exceeds the oversubscription threshold for any interface.<a href="#section-2.1.5-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.5-2">When oversubscribed, the trigger function changes the states of subscribed channels to "blocked" until the aggregate subscribed bit-rate is below the oversubscription threshold again.<a href="#section-2.1.5-2" class="pilcrow">¶</a></p>
+<div id="ordering">
+<section id="section-2.1.5.1">
+            <h5 id="name-fairness-and-inter-flow-ord">
+<a href="#section-2.1.5.1" class="section-number selfRef">2.1.5.1. </a><a href="#name-fairness-and-inter-flow-ord" class="section-name selfRef">Fairness and Inter-flow Ordering</a>
+            </h5>
+<p id="section-2.1.5.1-1">The trigger function orders the monitored flows according to a fairness function and a within-sender priority ordering (chosen by the sender as part of the CBACC metadata).
+When flows are blocked, they're blocked in order until the aggregate bitrate of the permitted flows do not exceed the oversubscription thresholds monitored by the CB node.<a href="#section-2.1.5.1-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.5.1-2">Flows from a single sender MUST be ordered according to their priority field from the CBACC metadata when compared with each other.  This takes precedence over the fairness function ordering, since certain flows from the same sender may need strict priority over others.<a href="#section-2.1.5.1-2" class="pilcrow">¶</a></p>
+<p id="section-2.1.5.1-3">For example, consider a sender using File Delivery over Unidirectional Transport (FLUTE, defined in <span>[<a href="#RFC6726" class="cite xref">RFC6726</a>]</span>) that sends File Delivery Table (FDT) Instances (see section 3.2 of <span>[<a href="#RFC6726" class="cite xref">RFC6726</a>]</span>) in one (S,G) and data for the various referenced files in other (S,G)s.
+In this case the data for the files will not be consumable without the (S,G) containing the FDT.
+Other transport protocols may similarly send control information (often with a lower bitrate) on one channel, and data information on another.
+In these cases, the sender may need to ensure that data channels are only available when the control channels are also available.<a href="#section-2.1.5.1-3" class="pilcrow">¶</a></p>
+<p id="section-2.1.5.1-4">When comparing flows between senders, (S,G)s from the same sender with different priorities should be treated as aggregated (S,G)s with regard to their declared bitrate consumption, to ensure that if any flows from the same sender need to be pruned by the circuit-breaker, the least preferred priority flows from that sender are pruned first.<a href="#section-2.1.5.1-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.5.1-5">Between-sender flows and flows from the same sender with the same priority are ordered according to the fairness function.  TBD: need to work thru detsils, this does not work as written.  Sample fairness function would reward senders for splitting a flow in 2 (more total subscribers).  Maybe should count offload instead?  This has trouble from favoring padding in your flow, but is (i think?) dominated by subscriber count where that's known.
+The fairness function can be different for CBs in different contexts.<a href="#section-2.1.5.1-5" class="pilcrow">¶</a></p>
+<p id="section-2.1.5.1-6">A CBACC CB implementation SHOULD provide mechanisms for administrative controls to configure explicit biases, as this may be necessary to support Service Level Agreements for specific events or providers, or to block or de-prioritize channels with historically known misbehavior.<a href="#section-2.1.5.1-6" class="pilcrow">¶</a></p>
+<p id="section-2.1.5.1-7">Subject to the above constraints, where possible the default fairness behavior SHOULD favor streams with many receivers over streams with few receivers, and streams with a low bit-rate over streams with a high bit-rate.  See <a href="#fairness" class="auto internal xref">Section 2.3.2</a> for further considerations and examples.<a href="#section-2.1.5.1-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="reaction">
+<section id="section-2.1.6">
+          <h4 id="name-reaction">
+<a href="#section-2.1.6" class="section-number selfRef">2.1.6. </a><a href="#name-reaction" class="section-name selfRef">Reaction</a>
+          </h4>
+<p id="section-2.1.6-1">When the trigger function fires and a subscribed channel becomes blocked, the reaction depends on whether it's an upstream interface or a downstream interface.<a href="#section-2.1.6-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.6-2">If a channel is blocked on one or more downstream interfaces, it may still be unblocked on other downstream interfaces.
+When this is the case, traffic is simply not forwarded along blocked interfaces, even though clients might still be joined downstream of those interfaces.<a href="#section-2.1.6-2" class="pilcrow">¶</a></p>
+<p id="section-2.1.6-3">When a channel is blocked on all downstream interfaces or when the upstream interface is oversubscribed, the channel is pruned so that data no longer arrives from the network on the upstream interface.
+The prune would be performed with a PIM prune (Section 3.5 of <span>[<a href="#RFC7761" class="cite xref">RFC7761</a>]</span>), or a "leave" operation to be communicated via IGMP, MLD, or another multicast group signaling mechanism, according to the expected signaling within the network.<a href="#section-2.1.6-3" class="pilcrow">¶</a></p>
+<p id="section-2.1.6-4">Once initially pruned, a flow SHOULD remain pruned for a minimum amount of time.
+The minimum hold-down duration SHOULD be no less than 2.5 minutes by default, even if available bitrate space clears up, to ensure downstream subscriptions will notice and respond.
+The hold-down duration SHOULD be extended from the minimum by a randomly chosen number of seconds uniformly distributed over a configurable desynchronization period, to avoid synchronized recovery of different circuit breakers along the path.
+The default length of the desynchronization period should be at least 30 seconds.<a href="#section-2.1.6-4" class="pilcrow">¶</a></p>
+<p id="section-2.1.6-5">2.5 minutes is chosen to exceed the default maximum lifetime of 2 minutes that can occur if an IGMP responder suddenly stops operation, and ceases responding to IGMP queries with membership reports, and 30 seconds is chosen to allow for some flexibility in lost packets.
+The values MAY be administratively tuned as needed by network operators to meet performance goals specific to their networks or to the traffic they're forwarding.<a href="#section-2.1.6-5" class="pilcrow">¶</a></p>
+<p id="section-2.1.6-6">When enough capacity is available for a circuit-broken stream to be unblocked and the circuit-breaker hold-down time is expired, flows SHOULD be unblocked according to the priority order until no more flows can be unblocked without exceeding the circuit breaker limits.<a href="#section-2.1.6-6" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="feedback-control-mechanism">
+<section id="section-2.1.7">
+          <h4 id="name-feedback-control-mechanism">
+<a href="#section-2.1.7" class="section-number selfRef">2.1.7. </a><a href="#name-feedback-control-mechanism" class="section-name selfRef">Feedback Control Mechanism</a>
+          </h4>
+<p id="section-2.1.7-1">The bitrate advertisement metadata from <a href="#bit-ad" class="auto internal xref">Section 2.1.1</a> should be refreshed as needed to maintain up to date values.
+When using DORMS and RESTCONF, the Subscription to YANG Notifications for Datastore Updates <span>[<a href="#RFC8641" class="cite xref">RFC8641</a>]</span> is the preferred method to receive changes if available.<a href="#section-2.1.7-1" class="pilcrow">¶</a></p>
+<p id="section-2.1.7-2">If datastore subscriptions are not supported by the client or server, the HTTP Cache Control headers provide valid refresh time properties from the server, and SHOULD be used if present.
+If No-Cache is used, the default refresh timing SHOULD be 30 seconds.
+A uniformly distributed random value between 0 and 10 seconds SHOULD be added to the Cache Control or the default refresh timing to avoid synchronization across multiple clients.<a href="#section-2.1.7-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="states">
+<section id="section-2.2">
+        <h3 id="name-states">
+<a href="#section-2.2" class="section-number selfRef">2.2. </a><a href="#name-states" class="section-name selfRef">States</a>
+        </h3>
+<div id="interface-state">
+<section id="section-2.2.1">
+          <h4 id="name-interface-state">
+<a href="#section-2.2.1" class="section-number selfRef">2.2.1. </a><a href="#name-interface-state" class="section-name selfRef">Interface State</a>
+          </h4>
+<p id="section-2.2.1-1">A CB holds the following state for each interface, for both the inbound and outbound directions on that interface:<a href="#section-2.2.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.2.1-2.1">
+              <p id="section-2.2.1-2.1.1">aggregate bandwidth:  The sum of the bandwidths of all non-circuit-broken CBACC flows that transit this interface in this direction.<a href="#section-2.2.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-2.2.1-2.2">
+              <p id="section-2.2.1-2.2.1">bandwidth limit:  The maximum aggregate CBACC advertised bandwidth allowed, not including circuit-broken flows.<a href="#section-2.2.1-2.2.1" class="pilcrow">¶</a></p>
+<p id="section-2.2.1-2.2.2">
+When reducing the bandwidth limit due to congestion, the circuit breaker SHOULD NOT reduce the limit by more than half its value in 10 seconds, and SHOULD use a smoothing function to reduce the limit gradually over time.<a href="#section-2.2.1-2.2.2" class="pilcrow">¶</a></p>
+<p id="section-2.2.1-2.2.3">
+It is RECOMMENDED that no more than half the capacity for a link be allocated to CBACC flows if the link might be shared with unicast traffic that is responsive to congestion.<a href="#section-2.2.1-2.2.3" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+</section>
+</div>
+<div id="flow-state">
+<section id="section-2.2.2">
+          <h4 id="name-flow-state">
+<a href="#section-2.2.2" class="section-number selfRef">2.2.2. </a><a href="#name-flow-state" class="section-name selfRef">Flow State</a>
+          </h4>
+<p id="section-2.2.2-1">Data streams with CBACC metadata have a state for the upstream interface through which the stream is joined:<a href="#section-2.2.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.2.2-2.1">
+              <p id="section-2.2.2-2.1.1">'subscribed'<br>
+Indicates that the circuit breaker is subscribed upstream to the flow and forwarding packets through zero or more egress interfaces.<a href="#section-2.2.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-2.2.2-2.2">
+              <p id="section-2.2.2-2.2.1">'pruned'<br>
+Indicates that the flow has been circuit-broken.
+A request to unsubscribe from the flow has been sent upstream, e.g. a PIM prune (Section 3.5 of <span>[<a href="#RFC7761" class="cite xref">RFC7761</a>]</span>) or a "leave" operation communicated via IGMP, MLD, or another group membership management mechanism.<a href="#section-2.2.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+<p id="section-2.2.2-3">Data streams also have a per-interface state for downstream interfaces with subscribers, where the data is being forwarded.
+It's one of:<a href="#section-2.2.2-3" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-2.2.2-4.1">
+              <p id="section-2.2.2-4.1.1">'forwarding'<br>
+Indicates that the flow is a non-circuit-broken flow in steady state, forwarding packets downstream.<a href="#section-2.2.2-4.1.1" class="pilcrow">¶</a></p>
+</li>
+            <li class="normal" id="section-2.2.2-4.2">
+              <p id="section-2.2.2-4.2.1">'blocked'<br>
+Indicates that data packets for this flow are NOT forwarded downstream via this interface.<a href="#section-2.2.2-4.2.1" class="pilcrow">¶</a></p>
+</li>
+          </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="implementation-design-considerations">
+<section id="section-2.3">
+        <h3 id="name-implementation-design-consi">
+<a href="#section-2.3" class="section-number selfRef">2.3. </a><a href="#name-implementation-design-consi" class="section-name selfRef">Implementation Design Considerations</a>
+        </h3>
+<div id="ref-oversubscribe-thresh">
+<section id="section-2.3.1">
+          <h4 id="name-oversubscription-thresholds">
+<a href="#section-2.3.1" class="section-number selfRef">2.3.1. </a><a href="#name-oversubscription-thresholds" class="section-name selfRef">Oversubscription Thresholds</a>
+          </h4>
+<p id="section-2.3.1-1">TBD.<a href="#section-2.3.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="fairness">
+<section id="section-2.3.2">
+          <h4 id="name-fairness-functions">
+<a href="#section-2.3.2" class="section-number selfRef">2.3.2. </a><a href="#name-fairness-functions" class="section-name selfRef">Fairness Functions</a>
+          </h4>
+<p id="section-2.3.2-1">As an example fairness function that makes good sense for a general case of unknown traffic:<a href="#section-2.3.2-1" class="pilcrow">¶</a></p>
+<p id="section-2.3.2-2">Consider a network where the receiver count for multicast channels is known, for example via the experimental PIM extension for population count defined in <span>[<a href="#RFC6807" class="cite xref">RFC6807</a>]</span>.<a href="#section-2.3.2-2" class="pilcrow">¶</a></p>
+<p id="section-2.3.2-3">A good fairness metric for a flow is max-bandwidth divided by receiver-count, with lower values of the fairness metric favored over higher values.<a href="#section-2.3.2-3" class="pilcrow">¶</a></p>
+<p id="section-2.3.2-4">An overview of some other approaches to appropriate fairness metrics is given in Section 2.3 of <span>[<a href="#RFC5166" class="cite xref">RFC5166</a>]</span>.<a href="#section-2.3.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="ref-yang">
+<section id="section-3">
+      <h2 id="name-yang-module">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-yang-module" class="section-name selfRef">YANG Module</a>
+      </h2>
+<div id="tree-diagram">
+<section id="section-3.1">
+        <h3 id="name-tree-diagram">
+<a href="#section-3.1" class="section-number selfRef">3.1. </a><a href="#name-tree-diagram" class="section-name selfRef">Tree Diagram</a>
+        </h3>
+<p id="section-3.1-1">The tree diagram below follows the notation defined in <span>[<a href="#RFC8340" class="cite xref">RFC8340</a>]</span>.<a href="#section-3.1-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-3.1-2">
+<pre>
+YANG-TREE ietf-cbacc.yang
+</pre><a href="#section-3.1-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="module">
+<section id="section-3.2">
+        <h3 id="name-module">
+<a href="#section-3.2" class="section-number selfRef">3.2. </a><a href="#name-module" class="section-name selfRef">Module</a>
+        </h3>
+<div class="alignLeft art-text artwork" id="section-3.2-1">
+<pre>
+YANG-MODULE ietf-cbacc.yang
+</pre><a href="#section-3.2-1" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-4">
+      <h2 id="name-iana-considerations">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<div id="yang-module-names-registry">
+<section id="section-4.1">
+        <h3 id="name-yang-module-names-registry">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-yang-module-names-registry" class="section-name selfRef">YANG Module Names Registry</a>
+        </h3>
+<p id="section-4.1-1">This document adds one YANG module to the "YANG Module Names" registry maintained at &lt;https://www.iana.org/assignments/yang-parameters&gt;.
+The following registrations are made, per the format in Section 14 of <span>[<a href="#RFC6020" class="cite xref">RFC6020</a>]</span>:<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.1-2">
+<pre>
+      name:      ietf-cbacc
+      namespace: urn:ietf:params:xml:ns:yang:ietf-cbacc
+      prefix:    cbacc
+      reference: I-D.draft-ietf-mboned-cbacc
+</pre><a href="#section-4.1-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+<div id="the-xml-registry">
+<section id="section-4.2">
+        <h3 id="name-the-xml-registry">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-the-xml-registry" class="section-name selfRef">The XML Registry</a>
+        </h3>
+<p id="section-4.2-1">This document adds the following registration to the "ns" subregistry of the "IETF XML Registry" defined in <span>[<a href="#RFC3688" class="cite xref">RFC3688</a>]</span>, referencing this document.<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<div class="alignLeft art-text artwork" id="section-4.2-2">
+<pre>
+       URI: urn:ietf:params:xml:ns:yang:ietf-cbacc
+       Registrant Contact: The IESG.
+       XML: N/A, the requested URI is an XML namespace.
+</pre><a href="#section-4.2-2" class="pilcrow">¶</a>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-5">
+      <h2 id="name-security-considerations">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-5-1">TBD: Yang Doctor review from Reshad said this should "mention the YANG data nodes".  I think this means "do what https://tools.ietf.org/html/rfc8407#section-3.7 says"?<a href="#section-5-1" class="pilcrow">¶</a></p>
+<div id="metadata-security">
+<section id="section-5.1">
+        <h3 id="name-metadata-security">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-metadata-security" class="section-name selfRef">Metadata Security</a>
+        </h3>
+<p id="section-5.1-1">Be sure to authenticate the metadata.
+See DORMS security considerations, and don't accept unauthenticated metadata if using an alternative means.<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="denial-of-service">
+<section id="section-5.2">
+        <h3 id="name-denial-of-service">
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-denial-of-service" class="section-name selfRef">Denial of Service</a>
+        </h3>
+<div id="state-overload">
+<section id="section-5.2.1">
+          <h4 id="name-state-overload">
+<a href="#section-5.2.1" class="section-number selfRef">5.2.1. </a><a href="#name-state-overload" class="section-name selfRef">State Overload</a>
+          </h4>
+<p id="section-5.2.1-1">Since CBACC flows require state, it may be possible for a set of receivers and/or senders, possibly acting in concert, to generate many flows in an attempt to overflow the circuit breakers' state tables.<a href="#section-5.2.1-1" class="pilcrow">¶</a></p>
+<p id="section-5.2.1-2">It is permissible for a network node to behave as a CBACC circuit breaker for some CBACC flows while treating other CBACC flows as non-CBACC, as part of a load balancing strategy for the network as a whole, or simply as defense against this concern when the number of monitored flows exceeds some threshold.<a href="#section-5.2.1-2" class="pilcrow">¶</a></p>
+<p id="section-5.2.1-3">The same techniques described in Section 3.1 of <span>[<a href="#RFC4609" class="cite xref">RFC4609</a>]</span> can be used to help mitigate this attack, for much the same reasons.
+It is RECOMMENDED that network operators implement measures to mitigate such attacks.<a href="#section-5.2.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="acknowledgements">
+<section id="section-6">
+      <h2 id="name-acknowledgements">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-acknowledgements" class="section-name selfRef">Acknowledgements</a>
+      </h2>
+<p id="section-6-1">Many thanks to Devin Anderson, Ben Kaduk, Cheng Jin, Scott Brown, Miroslav Ponec, Bob Briscoe, Lenny Giuliani, Christian Worm Mortensen, Dino Farinacci, and Reshad Rahman for their thoughtful comments and contributions.<a href="#section-6-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="sec-combined-references">
+<section id="section-7">
+      <h2 id="name-references">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<div id="sec-normative-references">
+<section id="section-7.1">
+        <h3 id="name-normative-references">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="I-D.draft-ietf-mboned-ambi">[I-D.draft-ietf-mboned-ambi]</dt>
+        <dd>
+<span class="refAuthor">Holland, J.</span> and <span class="refAuthor">K. Rose</span>, <span class="refTitle">"Asymmetric Manifest Based Integrity"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-mboned-ambi-03</span>, <time datetime="2022-03-07" class="refDate">7 March 2022</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-mboned-ambi-03">https://datatracker.ietf.org/doc/html/draft-ietf-mboned-ambi-03</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="I-D.draft-ietf-mboned-dorms">[I-D.draft-ietf-mboned-dorms]</dt>
+        <dd>
+<span class="refAuthor">Holland, J.</span>, <span class="refTitle">"Discovery Of Restconf Metadata for Source-specific multicast"</span>, <span class="refContent">Work in Progress</span>, <span class="seriesInfo">Internet-Draft, draft-ietf-mboned-dorms-04</span>, <time datetime="2022-03-07" class="refDate">7 March 2022</time>, <span>&lt;<a href="https://datatracker.ietf.org/doc/html/draft-ietf-mboned-dorms-04">https://datatracker.ietf.org/doc/html/draft-ietf-mboned-dorms-04</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7950">[RFC7950]</dt>
+        <dd>
+<span class="refAuthor">Bjorklund, M., Ed.</span>, <span class="refTitle">"The YANG 1.1 Data Modeling Language"</span>, <span class="seriesInfo">RFC 7950</span>, <span class="seriesInfo">DOI 10.17487/RFC7950</span>, <time datetime="2016-08" class="refDate">August 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7950">https://www.rfc-editor.org/rfc/rfc7950</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8084">[RFC8084]</dt>
+        <dd>
+<span class="refAuthor">Fairhurst, G.</span>, <span class="refTitle">"Network Transport Circuit Breakers"</span>, <span class="seriesInfo">BCP 208</span>, <span class="seriesInfo">RFC 8084</span>, <span class="seriesInfo">DOI 10.17487/RFC8084</span>, <time datetime="2017-03" class="refDate">March 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8084">https://www.rfc-editor.org/rfc/rfc8084</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8085">[RFC8085]</dt>
+        <dd>
+<span class="refAuthor">Eggert, L.</span>, <span class="refAuthor">Fairhurst, G.</span>, and <span class="refAuthor">G. Shepherd</span>, <span class="refTitle">"UDP Usage Guidelines"</span>, <span class="seriesInfo">BCP 145</span>, <span class="seriesInfo">RFC 8085</span>, <span class="seriesInfo">DOI 10.17487/RFC8085</span>, <time datetime="2017-03" class="refDate">March 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8085">https://www.rfc-editor.org/rfc/rfc8085</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8174">[RFC8174]</dt>
+        <dd>
+<span class="refAuthor">Leiba, B.</span>, <span class="refTitle">"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 8174</span>, <span class="seriesInfo">DOI 10.17487/RFC8174</span>, <time datetime="2017-05" class="refDate">May 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8174">https://www.rfc-editor.org/rfc/rfc8174</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8340">[RFC8340]</dt>
+      <dd>
+<span class="refAuthor">Bjorklund, M.</span> and <span class="refAuthor">L. Berger, Ed.</span>, <span class="refTitle">"YANG Tree Diagrams"</span>, <span class="seriesInfo">BCP 215</span>, <span class="seriesInfo">RFC 8340</span>, <span class="seriesInfo">DOI 10.17487/RFC8340</span>, <time datetime="2018-03" class="refDate">March 2018</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8340">https://www.rfc-editor.org/rfc/rfc8340</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="sec-informative-references">
+<section id="section-7.2">
+        <h3 id="name-informative-references">
+<a href="#section-7.2" class="section-number selfRef">7.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="CapProbe">[CapProbe]</dt>
+        <dd>
+<span class="refAuthor">Kapoor, R.</span>, <span class="refAuthor">Chen, L.-J.</span>, <span class="refAuthor">Lao, L.</span>, <span class="refAuthor">Gerla, M.</span>, and <span class="refAuthor">M. Y. Sanadidi</span>, <span class="refTitle">"CapProbe: A Simple and Accurate Capacity Estimation Technique"</span>, <time datetime="2004-09" class="refDate">September 2004</time>, <span>&lt;<a href="https://dl.acm.org/doi/pdf/10.1145/1015467.1015476">https://dl.acm.org/doi/pdf/10.1145/1015467.1015476</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="FLID-DL">[FLID-DL]</dt>
+        <dd>
+<span class="refAuthor">Byers, J. W.</span>, <span class="refAuthor">Horn, G.</span>, <span class="refAuthor">Luby, M.</span>, <span class="refAuthor">Mitzenmacher, M.</span>, <span class="refAuthor">Shaver, W.</span>, and <span class="refAuthor">IEEE</span>, <span class="refTitle">"FLID-DL: congestion control for layered multicast"</span>, <span class="seriesInfo">DOI 10.1109/JSAC.2002.803998</span>, <span>n.d.</span>, <span>&lt;<a href="https://ieeexplore.ieee.org/document/1038584">https://ieeexplore.ieee.org/document/1038584</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="PathChirp">[PathChirp]</dt>
+        <dd>
+<span class="refAuthor">Ribeiro, V. J.</span>, <span class="refAuthor">Riedi, R. H.</span>, <span class="refAuthor">Baraniuk, R. G.</span>, <span class="refAuthor">Navratil, J.</span>, <span class="refAuthor">Cottrell, L.</span>, <span class="refAuthor">Department of Electrical and Computer Engineering Rice University</span>, and <span class="refAuthor">SLAC/SCS-Network Monitoring, Stanford University</span>, <span class="refTitle">"pathChirp: Efficient Available Bandwidth Estimation for Network Paths"</span>, <time datetime="2003" class="refDate">2003</time>. </dd>
+<dd class="break"></dd>
+<dt id="PLM">[PLM]</dt>
+        <dd>
+<span class="refAuthor">Biersack, Institut EURECOM, A. L. W.</span>, <span class="refTitle">"PLM: Fast Convergence for Cumulative Layered Multicast Transmission Schemes"</span>, <time datetime="1999" class="refDate">1999</time>, <span>&lt;<a href="http://www.eurecom.fr/en/publication/340/download/ce-legoar-000601.pdf">http://www.eurecom.fr/en/publication/340/download/ce-legoar-000601.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC3688">[RFC3688]</dt>
+        <dd>
+<span class="refAuthor">Mealling, M.</span>, <span class="refTitle">"The IETF XML Registry"</span>, <span class="seriesInfo">BCP 81</span>, <span class="seriesInfo">RFC 3688</span>, <span class="seriesInfo">DOI 10.17487/RFC3688</span>, <time datetime="2004-01" class="refDate">January 2004</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc3688">https://www.rfc-editor.org/rfc/rfc3688</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC3738">[RFC3738]</dt>
+        <dd>
+<span class="refAuthor">Luby, M.</span> and <span class="refAuthor">V. Goyal</span>, <span class="refTitle">"Wave and Equation Based Rate Control (WEBRC) Building Block"</span>, <span class="seriesInfo">RFC 3738</span>, <span class="seriesInfo">DOI 10.17487/RFC3738</span>, <time datetime="2004-04" class="refDate">April 2004</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc3738">https://www.rfc-editor.org/rfc/rfc3738</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC4609">[RFC4609]</dt>
+        <dd>
+<span class="refAuthor">Savola, P.</span>, <span class="refAuthor">Lehtonen, R.</span>, and <span class="refAuthor">D. Meyer</span>, <span class="refTitle">"Protocol Independent Multicast - Sparse Mode (PIM-SM) Multicast Routing Security Issues and Enhancements"</span>, <span class="seriesInfo">RFC 4609</span>, <span class="seriesInfo">DOI 10.17487/RFC4609</span>, <time datetime="2006-10" class="refDate">October 2006</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc4609">https://www.rfc-editor.org/rfc/rfc4609</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC5166">[RFC5166]</dt>
+        <dd>
+<span class="refAuthor">Floyd, S., Ed.</span>, <span class="refTitle">"Metrics for the Evaluation of Congestion Control Mechanisms"</span>, <span class="seriesInfo">RFC 5166</span>, <span class="seriesInfo">DOI 10.17487/RFC5166</span>, <time datetime="2008-03" class="refDate">March 2008</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc5166">https://www.rfc-editor.org/rfc/rfc5166</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6020">[RFC6020]</dt>
+        <dd>
+<span class="refAuthor">Bjorklund, M., Ed.</span>, <span class="refTitle">"YANG - A Data Modeling Language for the Network Configuration Protocol (NETCONF)"</span>, <span class="seriesInfo">RFC 6020</span>, <span class="seriesInfo">DOI 10.17487/RFC6020</span>, <time datetime="2010-10" class="refDate">October 2010</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc6020">https://www.rfc-editor.org/rfc/rfc6020</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6726">[RFC6726]</dt>
+        <dd>
+<span class="refAuthor">Paila, T.</span>, <span class="refAuthor">Walsh, R.</span>, <span class="refAuthor">Luby, M.</span>, <span class="refAuthor">Roca, V.</span>, and <span class="refAuthor">R. Lehtonen</span>, <span class="refTitle">"FLUTE - File Delivery over Unidirectional Transport"</span>, <span class="seriesInfo">RFC 6726</span>, <span class="seriesInfo">DOI 10.17487/RFC6726</span>, <time datetime="2012-11" class="refDate">November 2012</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc6726">https://www.rfc-editor.org/rfc/rfc6726</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC6807">[RFC6807]</dt>
+        <dd>
+<span class="refAuthor">Farinacci, D.</span>, <span class="refAuthor">Shepherd, G.</span>, <span class="refAuthor">Venaas, S.</span>, and <span class="refAuthor">Y. Cai</span>, <span class="refTitle">"Population Count Extensions to Protocol Independent Multicast (PIM)"</span>, <span class="seriesInfo">RFC 6807</span>, <span class="seriesInfo">DOI 10.17487/RFC6807</span>, <time datetime="2012-12" class="refDate">December 2012</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc6807">https://www.rfc-editor.org/rfc/rfc6807</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC7761">[RFC7761]</dt>
+        <dd>
+<span class="refAuthor">Fenner, B.</span>, <span class="refAuthor">Handley, M.</span>, <span class="refAuthor">Holbrook, H.</span>, <span class="refAuthor">Kouvelas, I.</span>, <span class="refAuthor">Parekh, R.</span>, <span class="refAuthor">Zhang, Z.</span>, and <span class="refAuthor">L. Zheng</span>, <span class="refTitle">"Protocol Independent Multicast - Sparse Mode (PIM-SM): Protocol Specification (Revised)"</span>, <span class="seriesInfo">STD 83</span>, <span class="seriesInfo">RFC 7761</span>, <span class="seriesInfo">DOI 10.17487/RFC7761</span>, <time datetime="2016-03" class="refDate">March 2016</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7761">https://www.rfc-editor.org/rfc/rfc7761</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8641">[RFC8641]</dt>
+        <dd>
+<span class="refAuthor">Clemm, A.</span> and <span class="refAuthor">E. Voit</span>, <span class="refTitle">"Subscription to YANG Notifications for Datastore Updates"</span>, <span class="seriesInfo">RFC 8641</span>, <span class="seriesInfo">DOI 10.17487/RFC8641</span>, <time datetime="2019-09" class="refDate">September 2019</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8641">https://www.rfc-editor.org/rfc/rfc8641</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RLC">[RLC]</dt>
+        <dd>
+<span class="refAuthor">Rizzo, L.</span>, <span class="refAuthor">Vicisano, L.</span>, and <span class="refAuthor">J. Crowcroft</span>, <span class="refTitle">"The RLC multicast congestion control algorithm"</span>, <time datetime="1999" class="refDate">1999</time>, <span>&lt;<a href="http://www.iet.unipi.it/~a007834/rlc99.ps.gz">http://www.iet.unipi.it/~a007834/rlc99.ps.gz</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RLM">[RLM]</dt>
+        <dd>
+<span class="refAuthor">McCanne, S.</span>, <span class="refAuthor">Jacobson, V.</span>, <span class="refAuthor">Vetterli, M.</span>, <span class="refAuthor">University of California, Berkeley</span>, and <span class="refAuthor">Lawrence Berkeley National Laboratory</span>, <span class="refTitle">"Receiver-driven Layered Multicast"</span>, <time datetime="1995" class="refDate">1995</time>, <span>&lt;<a href="http://www1.cs.columbia.edu/~danr/courses/6761/Fall00/week9/layering.pdf">http://www1.cs.columbia.edu/~danr/courses/6761/Fall00/week9/layering.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="SMCC">[SMCC]</dt>
+        <dd>
+<span class="refAuthor">Kwon, G.-I.</span>, <span class="refAuthor">Byers, J. W.</span>, and <span class="refAuthor">Computer Science Department, Boston University</span>, <span class="refTitle">"Smooth Multirate Multicast Congestion Control"</span>, <time datetime="2002" class="refDate">2002</time>, <span>&lt;<a href="http://www.cs.bu.edu/techreports/pdf/2002-025-smcc.pdf">http://www.cs.bu.edu/techreports/pdf/2002-025-smcc.pdf</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="ZSC91">[ZSC91]</dt>
+      <dd>
+<span class="refAuthor">Zhang, L.</span>, <span class="refAuthor">Shenker, S.</span>, and <span class="refAuthor">D. D. Clark</span>, <span class="refTitle">"Observations and Dynamics of a Congestion Control Algorithm: The Effects of Two-Way Traffic"</span>, <span class="seriesInfo">Proc. ACM SIGCOMM, ACM Computer Communications Review (CCR), Vol 21, No 4, pp.133-147. </span>, <time datetime="1991" class="refDate">1991</time>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="ref-overjoining">
+<section id="appendix-A">
+      <h2 id="name-overjoining">
+<a href="#appendix-A" class="section-number selfRef">Appendix A. </a><a href="#name-overjoining" class="section-name selfRef">Overjoining</a>
+      </h2>
+<p id="appendix-A-1"><span>[<a href="#RFC8085" class="cite xref">RFC8085</a>]</span> describes several remedies for unicast congestion control under UDP, even though UDP does not itself provide congestion control.
+In general, any network node under congestion could in theory collect evidence that a unicast flow's sending rate is not responding to congestion, and would then be justified in circuit-breaking it.<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+<p id="appendix-A-2">With multicast IP, the situation is different, especially in the presence of malicious receivers.
+A well-behaved sender using a receiver-controlled congestion scheme such as WEBRC does not reduce its send rate in response to congestion, instead relying on receivers to leave the appropriate multicast groups.<a href="#appendix-A-2" class="pilcrow">¶</a></p>
+<p id="appendix-A-3">This leads to a situation where, when a network accepts inter-domain multicast traffic, as long as there are senders somewhere in the world with aggregate bandwidth that exceeds a network's capacity, receivers in that network can join the flows and overflow the network capacity.
+A receiver controlled by an attacker could do this at the IGMP/MLD level without running the application layer protocol that participates in the receiver-controlled congestion control.<a href="#appendix-A-3" class="pilcrow">¶</a></p>
+<p id="appendix-A-4">A network might be able to detect and defend against the most naive version of such an attack by blocking end users that try to join too many flows at once.
+However, an attacker can achieve the same effect by joining a few high-bandwidth flows, if those exist anywhere, and an attacker that controls a few machines in a network can coordinate the receivers so they join disjoint sets of non-responsive sending flows.<a href="#appendix-A-4" class="pilcrow">¶</a></p>
+<p id="appendix-A-5">This scenario will produce congestion in a middle node in the network that can't be easily detected at the edge where the IGMP/MLD join is accepted.
+Thus, an attacker with a small set of machines in a target network can always trip a circuit breaker if present, or can induce excessive congestion among the bandwidth allocated to multicast.
+This problem gets worse as more multicast flows become available.<a href="#appendix-A-5" class="pilcrow">¶</a></p>
+<p id="appendix-A-6">Although the same can apply to non-responsive unicast traffic, network operators can assume that non-responsive sending flows are in violation of congestion control best practices, and can therefore cut off flows associated with the misbehaving senders.
+By contrast, non-responsive multicast senders are likely to be well-behaved participants in receiver-controlled congestion control schemes.<a href="#appendix-A-6" class="pilcrow">¶</a></p>
+<p id="appendix-A-7">However, receiver controlled congestion control schemes also show the most promise for efficient massive scale content distribution via multicast, provided network health can be ensured.
+Therefore, mechanisms to mitigate overjoining attacks while still permitting receiver-controlled congestion control are necessary.<a href="#appendix-A-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-B">
+      <h2 id="name-authors-address">
+<a href="#name-authors-address" class="section-name selfRef">Author's Address</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Jake Holland</span></div>
+<div dir="auto" class="left"><span class="org">Akamai Technologies, Inc.</span></div>
+<div dir="auto" class="left"><span class="street-address">150 Broadway</span></div>
+<div dir="auto" class="left">
+<span class="locality">Cambridge, MA 02144</span>,  </div>
+<div dir="auto" class="left"><span class="country-name">United States of America</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:jakeholland.net@gmail.com" class="email">jakeholland.net@gmail.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>
